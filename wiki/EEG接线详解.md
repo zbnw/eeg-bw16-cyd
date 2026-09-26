@@ -51,4 +51,8 @@ BW16 裸模块脚位沿用 [Ai-Thinker BW16 V1.2.2 规格书](https://docs.ai-th
 4. MCU 由其电池上电后，再连接共地与 EEG `TX`。
 5. 按 `57600 8N1` 接收，先观察校验错误计数和数据流，再考虑电极测试。
 
-人体接触测试前必须阅读 [原型安全边界](hardware/SAFETY.md)。
+人体接触测试前必须阅读 [原型安全边界](https://github.com/zbnw/eeg-bw16-cyd/wiki/%E5%8E%9F%E5%9E%8B%E5%AE%89%E5%85%A8%E8%BE%B9%E7%95%8C)。
+
+---
+
+本页与[仓库原文](https://github.com/zbnw/eeg-bw16-cyd/blob/main/EEG_WIRING.md)同步。

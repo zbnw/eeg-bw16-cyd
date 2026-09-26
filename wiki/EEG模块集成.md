@@ -53,3 +53,7 @@
 ```
 
 校验字节为 `0xFF - sum(payload)` 的低 8 位。LCD 采用线性最小/最大值波形显示，不做平滑。采集文件应保留原始有符号样本；离线平滑或伪迹标记需与原始字节分开保存。
+
+---
+
+本页与[仓库原文](https://github.com/zbnw/eeg-bw16-cyd/blob/main/hardware/SICHIRAY_EEG_V6_1.md)同步。
