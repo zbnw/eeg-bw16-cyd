@@ -1,0 +1,30 @@
+AGENTS.md
+.agents/
+.codex/
+.build/
+.tools/
+.venv/
+.pio/
+backups/
+__pycache__/
+*.py[cod]
+*.log
+*.jsonl
+*.bin
+*.csv
+*.dat
+*.DAT
+*.elf
+*.axf
+recordings/
+captures/
+
+# Local conversation and acquisition material may contain personal EEG data.
+docs/CHAT_HISTORY.md
+docs/CHAT_HISTORY.json
+
+# Editor and operating-system state
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

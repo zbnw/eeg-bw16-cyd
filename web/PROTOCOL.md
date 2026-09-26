@@ -1,0 +1,65 @@
+# USB JSONL / WebSocket JSON v1（固件 0.2.0）
+
+CYD 在收到 ASCII `json\n` 后，以 115200 8N1 输出每行一个 JSON 对象。
+电脑网关按行解析，WebSocket 每个文本帧装一个对象。使用 `binary\n` 恢复默认 EEG 二进制流。
+BIN 字节不能直接作为 JSON 发送；旧版输入由网关 --format binary 解析。
+
+## 消息
+
+```json
+{"v":1,"type":"hello","device_id":"CYD-...","firmware":"0.2.0","session_id":"BOOT-1","source":"ble"}
+{"v":1,"type":"samples","seq":0,"device_rx_ms":1234,"sample_index":10,"samples":[-1,0,20]}
+{"v":1,"type":"metrics","seq":1,"poor_signal":0,"attention":42,"meditation":57,"bands_raw":[100,80,20,30,10,20,5,7],"bands":{"delta":100,"theta":80,"alpha":50,"beta":30,"gamma":12}}
+{"v":1,"type":"status","seq":2,"connected":true,"received_rate_hz":248,"ble_gap_events":0,"ble_queue_drops":0,"bw16_tx_drops":0}
+```
+
+v 固定为 1，不等于固件版本号。hello 标识一次输出会话；重新切 JSON、串口重新连接或固件重启都会开始新会话。
+网页在 hello / WebSocket 重连时清理实时缓存和序号基线，历史导出行保留原会话信息。
+
+samples 为非空有符号 16 位整数数组。固件每批最多 32 点、等候上限约 100 ms；
+网页接收上限 1024 点。拒绝布尔值、字符串、非有限数和小数。
+sample_index 是 CYD 已处理 raw 的计数，不是 EEG 模块采样序号；掉包前后可能仍连续。
+
+metrics 中缺失字段表示未知，网页不会沿用旧值冒充新值。
+bands_raw 为模块顺序的 8 个 24 位无符号项；bands 中 alpha=项2+3、beta=项4+5、gamma=项6+7（零起始）。
+网页显示五组归一化百分比，不重新做 FFT，也不声称这些数值为校准功率。
+poor_signal 范围 0..200，attention / meditation 为 0..100。
+
+## 时间与序号
+
+- device_rx_ms：该批第一个点在 CYD 主循环处理的 millis，32 位回绕；不是电极采样时间。
+- sample_rate_hz：可选的显式近似采样率，范围 1..4096，主要用于 BIN 回放。
+- received_rate_hz：CYD 最近一个统计周期的接收速率；受停顿、丢样、排队影响。
+- 网关为每条非 hello 消息重新分配连续 seq，并加 host_received_us，原始 CYD seq 不被当作浏览器消息序号。
+- host_received_us：网关发布消息时的主机墙钟时间。网页导出的逐样本时间根据接收时间和近似速率推算。
+- 外部源可提供 timestamp_us，表示批次首点时间；网页标记 source-supplied，不自动证明硬件精度。
+- CSV 的 timestamp_kind 区分 host-estimate / source-supplied。历史回放时间是回放主机时间，不是原录音时间。
+
+## 健康统计
+
+| 字段 | 含义 |
+| --- | --- |
+| raw_count / metrics_count | CYD 当前启动以来处理的有效样本 / 指标包 |
+| ble_gap_events | 8 位 BLE 通知序号不连续的事件数；不是缺失样本数 |
+| ble_queue_drops | CYD 回调入队失败次数 |
+| ble_malformed | 无效通知、无配对的指标尾段、过期或损坏的分段等 |
+| checksum_errors | CYD 直接 UART 解析器校验错误；BLE 发送端错误看 bw16_checksum_errors |
+| frame_errors | CYD 指标内容解码失败 |
+| reconnects | CYD 主循环观察到的 BLE 断连事件 |
+| uart_skipped_bytes / uart_timeouts | CYD 备用直接 UART 的重新同步 / 超时统计 |
+| bw16_firmware / bw16_raw_count | BW16 版本 / 已接收有效 raw 总数 |
+| bw16_checksum_errors | BW16 EEG UART 校验错误 |
+| bw16_tx_drops | BW16 队列满、重置丢弃的通知及 setData 失败；非无线送达失败总数 |
+| bw16_uart_timeouts | BW16 残包超时计数，健康载荷低 16 位 |
+| free_heap | CYD 当前可用堆字节数 |
+| connected | 当前链路状态，不能替代 raw 新鲜度 |
+
+BW16 健康通知超过 3 秒没更新时，对应字段从 CYD 状态消息中省略，网页显示未知。
+battery_percent / latency_ms 仍是协议可选字段，当前硬件固件未实现测量，不能填入演示值。
+
+## 网关来源与流控
+
+网关覆盖 hello.source：串口为 serial，历史文件为 replay；网页将串口记为 device，回放始终独立标记。
+网关只在 127.0.0.1 监听，浏览器 Origin 限于自身网页地址。每客户端最多排队 64 条，
+过慢客户端收到 1013 并重连，不无声地丢弃中间消息。浏览器重连后不补发历史数据。
+记录文件 --record 在广播前保存全部网关发布消息；源头损失仍需看固件计数。

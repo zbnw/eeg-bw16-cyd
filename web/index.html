@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="NeuroFlow ESP32 脑电监测仪表盘" />
+    <title>NeuroFlow · 脑电监测</title>
+    <link rel="stylesheet" href="styles.css?v=0.2.0" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#" aria-label="NeuroFlow 首页">
+          <span class="brand-mark"><i></i><i></i><i></i><i></i></span>
+          <span>Neuro<span>Flow</span></span>
+        </a>
+
+        <nav class="nav" aria-label="主导航">
+          <p class="nav-label">工作台</p>
+          <a class="nav-item active" href="#overview" data-page="总览">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+            实时总览
+          </a>
+          <a class="nav-item" href="#sessions" data-page="记录" aria-disabled="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg>
+            采集记录
+          </a>
+          <a class="nav-item" href="#devices" data-page="设备" aria-disabled="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 7h6M9 17h.01M12 17h.01M15 17h.01"/></svg>
+            设备管理
+          </a>
+          <p class="nav-label">分析</p>
+          <a class="nav-item" href="#reports" data-page="报告" aria-disabled="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>
+            分析报告
+          </a>
+          <a class="nav-item" href="#settings" data-page="设置" aria-disabled="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.94 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.57 15 1.7 1.7 0 0 0 3 14H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.57 1.7 1.7 0 0 0 10 3h4v.08a1.7 1.7 0 0 0 1.06 1.52 1.7 1.7 0 0 0 1.88-.34L17 4.2 19.83 7l-.06.06A1.7 1.7 0 0 0 19.43 9 1.7 1.7 0 0 0 21 10h.08v4H21a1.7 1.7 0 0 0-1.6 1z"/></svg>
+            系统设置
+          </a>
+        </nav>
+
+        <div class="device-mini">
+          <div class="device-icon"><span></span></div>
+          <div><strong id="deviceName">演示数据源</strong><small id="deviceMiniStatus"><i></i> DEMO · 未连接设备</small></div>
+          <button aria-label="设备选项">•••</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <button class="menu-button" id="menuButton" aria-label="打开菜单" aria-controls="sidebar" aria-expanded="false">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <div class="breadcrumbs"><span>工作台</span><b>/</b><strong>实时总览</strong></div>
+          <div class="top-actions">
+            <div class="live-clock"><span></span><time id="clock">--:--:--</time></div>
+            <button class="icon-button" aria-label="通知">
+              <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><i></i>
+            </button>
+            <button class="avatar" aria-label="个人资料">YL</button>
+          </div>
+        </header>
+
+        <section class="content" id="overview">
+          <div class="page-heading">
+            <div><p class="eyebrow" id="modeLabel">DEMO MODE</p><h1>EEG 数据监视器</h1><p id="pageStatus">正在运行本地演示数据，尚未连接真实设备。</p></div>
+            <div class="heading-actions">
+              <button class="button secondary" id="exportButton">
+                <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>导出数据
+              </button>
+              <button class="button primary" id="sessionButton" aria-pressed="false"><span></span>暂停显示</button>
+            </div>
+          </div>
+
+          <div class="metrics-grid">
+            <article class="metric-card attention">
+              <div class="metric-top"><span class="metric-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2V0M12 24v-2M2 12H0m24 0h-2"/></svg></span><span class="trend up">设备指标</span></div>
+              <p>专注度</p><div class="metric-value"><strong id="attentionValue">--</strong><span>/ 100</span></div>
+              <div class="progress" id="attentionProgress" role="progressbar" aria-label="专注度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><small>设备算法输出，仅作原型展示</small>
+            </article>
+            <article class="metric-card meditation">
+              <div class="metric-top"><span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M12 21c5-2 8-6 8-11V5l-8-3-8 3v5c0 5 3 9 8 11z"/><path d="M8 12c2 0 3 1 4 3 1-2 2-3 4-3"/></svg></span><span class="trend up">设备指标</span></div>
+              <p>放松度</p><div class="metric-value"><strong id="meditationValue">--</strong><span>/ 100</span></div>
+              <div class="progress" id="meditationProgress" role="progressbar" aria-label="放松度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><small>设备算法输出，仅作原型展示</small>
+            </article>
+            <article class="metric-card quality">
+              <div class="metric-top"><span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.3a10 10 0 0 1 14 0M8.5 15.7a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></svg></span><span class="trend stable" id="signalState">等待数据</span></div>
+              <p>信号质量</p><div class="metric-value"><strong id="signalQualityValue">--</strong><span>%</span></div>
+              <div class="progress" id="signalProgress" role="progressbar" aria-label="信号质量" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><small id="signalHelp">数值由 poor_signal 换算</small>
+            </article>
+            <article class="metric-card duration">
+              <div class="metric-top"><span class="metric-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="9"/><path d="M12 8v5l3 2M9 2h6"/></svg></span><span class="trend stable">进行中</span></div>
+              <p>采集时长</p><div class="metric-value time"><strong id="durationValue">00:00:00</strong></div>
+              <div class="progress"><i id="durationProgress"></i></div><small>仅统计当前浏览器会话</small>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel wave-panel">
+              <div class="panel-header">
+                <div><h2>实时脑电波形</h2><p>RAW EEG · <span id="streamMode">DEMO</span></p></div>
+                <div class="legend"><span><i class="cyan"></i>原始样本极值 · 自动缩放</span></div>
+              </div>
+              <div class="chart-wrap">
+                <div class="y-axis"><span>+100</span><span>+50</span><span>0</span><span>-50</span><span>-100</span></div>
+                <canvas id="eegChart" role="img" aria-label="实时脑电波形图"></canvas>
+                <p class="sr-only" id="chartSummary" aria-live="polite">等待脑电数据。</p>
+              </div>
+              <div class="x-axis"><span>-5s</span><span>-4s</span><span>-3s</span><span>-2s</span><span>-1s</span><span>现在</span></div>
+              <div class="chart-footer"><span id="streamStatus"><i></i> 演示数据流</span><strong><b id="sampleRate">--</b> samples/s</strong><span>显示幅度 <b id="amplitude">--</b> raw</span></div>
+            </article>
+
+            <article class="panel bands-panel">
+              <div class="panel-header"><div><h2>频段能量</h2><p>MODULE BAND POWER</p></div><button aria-label="更多">•••</button></div>
+              <div class="band-row" data-band="delta"><span class="band-symbol delta">δ</span><div><strong>Delta</strong><small>模块 Delta</small></div><div class="band-bar"><i></i></div><b>--</b></div>
+              <div class="band-row" data-band="theta"><span class="band-symbol theta">θ</span><div><strong>Theta</strong><small>模块 Theta</small></div><div class="band-bar"><i></i></div><b>--</b></div>
+              <div class="band-row" data-band="alpha"><span class="band-symbol alpha">α</span><div><strong>Alpha</strong><small>低 / 高 Alpha 合计</small></div><div class="band-bar"><i></i></div><b>--</b></div>
+              <div class="band-row" data-band="beta"><span class="band-symbol beta">β</span><div><strong>Beta</strong><small>低 / 高 Beta 合计</small></div><div class="band-bar"><i></i></div><b>--</b></div>
+              <div class="band-row" data-band="gamma"><span class="band-symbol gamma">γ</span><div><strong>Gamma</strong><small>低 / 中 Gamma 合计</small></div><div class="band-bar"><i></i></div><b>--</b></div>
+              <div class="dominant"><span class="band-symbol alpha">α</span><div><small>主导频段</small><strong id="dominantBand">等待指标</strong></div><p>非医疗指标</p></div>
+            </article>
+          </div>
+
+          <div class="bottom-grid">
+            <article class="panel insight-panel">
+              <div class="insight-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M8.5 15.5A7 7 0 1 1 15.5 15.5C14.5 16.3 14 17 14 18h-4c0-1-.5-1.7-1.5-2.5z"/></svg></div>
+              <div><span>数据说明</span><strong id="insightTitle">当前为演示模式</strong><p id="insightText">页面数据不代表真实脑电状态，也不能用于医疗判断。</p></div>
+              <button id="protocolButton">协议说明 <span>→</span></button>
+            </article>
+            <article class="panel connection-panel">
+              <div><span class="status-dot demo" id="connectionDot"></span><div><strong id="connectionTitle">未连接真实设备</strong><p id="connectionDetail">DEMO · 本地生成数据</p></div></div>
+              <div class="connection-stats"><span>延迟 <b id="latencyValue">--</b></span><span>网页消息缺口 <b id="packetLossValue">--</b></span><span>电量 <b id="batteryValue">--</b></span></div>
+              <p id="transportHealth">等待链路诊断信息</p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+    <button class="sidebar-overlay" id="sidebarOverlay" aria-label="关闭菜单" tabindex="-1"></button>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <noscript>此页面需要 JavaScript 才能显示实时数据。</noscript>
+    <script src="app.js?v=0.2.0" defer></script>
+  </body>
+</html>
