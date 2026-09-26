@@ -1,0 +1,374 @@
+"""
+以下代码出自项目的开创者 罗同学于2026年2月份搓出来的第一份解析脚本，
+
+这个Python脚本和本项目核心代码无关，和本项目核心代码无关！如果你是开发者，请忽略这个文件，请忽略这个文件！请忽略这个文件！！
+
+我将这段代码上传到库中，以纪念L同学，
+这个人是我创建这个项目的动机，且为我提供了重要支持，
+这个项目 谨献给L同学
+
+- Z 于260926晚上在家中写下这段注释
+
+"""
+"""
+EEG
+"""
+
+import serial
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from collections import deque
+import struct
+import time
+import threading
+import numpy as np
+
+
+# 1
+
+def parse_small_packet(packet):
+    """
+    解析小包：AA AA 04 80 02 xxHigh xxLow xxCheckSum
+    返回：rawdata (原始值)
+    """
+    # 固定检查
+    if packet[0] != 0xAA or packet[1] != 0xAA or packet[2] != 0x04 or packet[3] != 0x80 or packet[4] != 0x02:
+        return None
+
+    # 高字节和低字节
+    high_byte = packet[5]  # xxHigh
+    low_byte = packet[6]  # xxLow
+
+    # 组合成16位整数 (高字节在高8位，低字节在低8位)
+    rawdata = (high_byte << 8) | low_byte
+
+    # 转换为有符号数 (超过32767是负数)
+    if rawdata > 32767:
+        rawdata = rawdata - 65536
+
+    # 校验和验证
+    checksum = packet[7]
+    # 计算校验和
+    calc_checksum = (0xAA + 0xAA + 0x04 + 0x80 + 0x02 + high_byte + low_byte) & 0xFF
+    if calc_checksum != checksum:
+
+
+        import serial
+        import matplotlib.pyplot as plt
+        import matplotlib.animation as animation
+        from collections import deque
+        import struct
+        import time
+        import threading
+        import numpy as np
+
+class TGAM_EEG:
+
+     def __init__(self, port='COM4', baudrate=57600):
+        self.port = port
+        self.baudrate = baudrate
+        self.ser = None
+        self.is_connected = False
+
+        # 数据缓冲区
+        self.rawdata_buffer = deque(maxlen=5120)  # 存原始数据 (10秒 @512Hz)
+        self.time_buffer = deque(maxlen=5120)     # 对应的时间戳
+
+        # 频带能量缓冲区 (每秒更新一次)
+        self.bands_buffer = deque(maxlen=100)     # 存最近100秒的频带数据
+
+        # 专注度/放松度缓冲区
+        self.attention_buffer = deque(maxlen=100)
+        self.meditation_buffer = deque(maxlen=100)
+
+        # 统计信息
+        self.packet_count = 0
+        self.small_count = 0
+        self.big_count = 0
+        self.start_time = None
+
+    def connect(self):
+        """连接设备"""
+        try:
+            self.ser = serial.Serial(
+                port=self.port,
+                baudrate=self.baudrate,
+                timeout=1
+            )
+            self.is_connected = True
+            self.start_time = time.time()
+            print(f"✓ 已连接到 {self.port} @ {self.baudrate} baud")
+
+            # 清空缓冲区
+            self.ser.reset_input_buffer()
+            return True
+
+        except Exception as e:
+            print(f"✗ 连接失败: {e}")
+            return False
+
+    def disconnect(self):
+        """断开连接"""
+        if self.ser and self.ser.is_open:
+            self.ser.close()
+            self.is_connected = False
+            print("已断开连接")
+
+    def find_packet(self, data):
+        """
+        在数据流中查找数据包
+        返回：(包类型, 包数据, 剩余数据)
+        """
+        # 查找AA AA
+        for i in range(len(data) - 1):
+            if data[i] == 0xAA and data[i+1] == 0xAA:
+                # 判断是小包还是大包
+                if i + 2 < len(data):
+                    third_byte = data[i+2]
+
+                    if third_byte == 0x04:  # 小包
+                        # 小包固定8字节
+                        if i + 7 < len(data):
+                            packet = data[i:i+8]
+                            remaining = data[i+8:]
+                            return ('small', packet, remaining)
+
+                    elif third_byte == 0x20:  # 大包
+                        # 大包长度：2同步 + 1长度 + 32负载 + 1校验 = 36字节
+                        if i + 35 < len(data):
+                            packet = data[i:i+36]
+                            remaining = data[i+36:]
+                            return ('big', packet, remaining)
+
+        # 没找到完整包，返回None
+        return (None, None, data)
+
+    def start_collecting(self):
+        """开始采集数据"""
+        if not self.is_connected:
+            print("请先连接设备")
+            return
+
+        print("开始采集数据... (按Ctrl+C停止)")
+
+        # 数据缓冲区
+        buffer = bytearray()
+
+        try:
+            while True:
+                # 读取数据
+                if self.ser.in_waiting > 0:
+                    data = self.ser.read(self.ser.in_waiting)
+                    buffer.extend(data)
+
+                    # 处理缓冲区中的数据
+                    while len(buffer) > 0:
+                        packet_type, packet, buffer = self.find_packet(buffer)
+
+                        if packet_type == 'small':
+                            # 处理小包
+                            rawdata = parse_small_packet(packet)
+                            if rawdata is not None:
+                                # 记录原始数据
+                                current_time = time.time() - self.start_time
+                                self.rawdata_buffer.append(rawdata)
+                                self.time_buffer.append(current_time)
+                                self.small_count += 1
+
+                                # 每收到100个小包显示一次进度
+                                if self.small_count % 100 == 0:
+                                    print(f"  已收 {self.small_count} 个原始数据点", end='\r')
+
+                        elif packet_type == 'big':
+                            # 处理大包
+                            print("\n" + "="*50)
+                            print(f"收到大包 #{self.big_count + 1}")
+                            band_data = parse_big_packet(packet)
+
+                            if band_data:
+                                # 记录频带数据
+                                self.bands_buffer.append(band_data)
+
+                                # 记录专注度/放松度
+                                if 'attention' in band_data:
+                                    self.attention_buffer.append(band_data['attention'])
+                                if 'meditation' in band_data:
+                                    self.meditation_buffer.append(band_data['meditation'])
+
+                                self.big_count += 1
+
+                            print("="*50)
+
+                        elif packet_type is None:
+                            # 跳出循环
+                            break
+
+                # 延时
+                time.sleep(0.001)
+
+        except KeyboardInterrupt:
+            print("\n\n采集停止")
+            self.print_stats()
+
+    def print_stats(self):
+        duration = time.time() - self.start_time
+        print("\n" + "="*50)
+        print("采集统计")
+        print("="*50)
+        print(f"总时长: {duration:.2f} 秒" )
+        print(f"小包数: {self.small_count}")
+        print(f"大包数: {self.big_count}")
+        print(f"实际采样率: {self.small_count/duration:.1f} Hz")
+        print(f"缓冲区: {len(self.rawdata_buffer)} 个原始数据点")
+
+        # ========== 第4部分：实时绘图类 ==========
+
+        class RealTimePlot:
+            """实时显示EEG波形和频带能量"""
+
+            def __init__(self, eeg_device):
+                self.device = eeg_device
+
+                # 创建图形
+                self.fig = plt.figure(figsize=(14, 10))
+
+                # 子图1：原始波形
+                self.ax1 = plt.subplot(3, 1, 1)
+                self.line1, = self.ax1.plot([], [], 'b-', linewidth=0.5)
+                self.ax1.set_ylabel('原始值')
+                self.ax1.set_title('原始EEG波形')
+                self.ax1.grid(True, alpha=0.3)
+
+                # 子图2：频带能量
+                self.ax2 = plt.subplot(3, 1, 2)
+                self.bar_positions = np.arange(8)
+                self.bar_colors = ['gray', 'green', 'blue', 'cyan', 'orange', 'red', 'purple', 'pink']
+                self.bars = self.ax2.bar(self.bar_positions, [0] * 8, color=self.bar_colors, alpha=0.7)
+                self.ax2.set_xticks(self.bar_positions)
+                self.ax2.set_xticklabels(['δ', 'θ', 'α1', 'α2', 'β1', 'β2', 'γ1', 'γ2'])
+                self.ax2.set_ylabel('能量值')
+                self.ax2.set_title('当前频带能量')
+                self.ax2.grid(True, alpha=0.3)
+
+                # 子图3：专注度/放松度
+                self.ax3 = plt.subplot(3, 1, 3)
+                self.line_att, = self.ax3.plot([], [], 'r-', label='专注度', linewidth=2)
+                self.line_med, = self.ax3.plot([], [], 'b-', label='放松度', linewidth=2)
+                self.ax3.set_ylabel('数值 (0-100)')
+                self.ax3.set_xlabel('时间 (秒)')
+                self.ax3.set_title('专注度与放松度')
+                self.ax3.set_ylim(0, 100)
+                self.ax3.legend()
+                self.ax3.grid(True, alpha=0.3)
+
+                plt.tight_layout()
+
+            def update(self, frame):
+                """更新图形"""
+                # 更新原始波形 (显示最近2秒)
+                if len(self.device.rawdata_buffer) > 0:
+                    # 取最近1000个点
+                    n_points = min(1000, len(self.device.rawdata_buffer))
+                    data = list(self.device.rawdata_buffer)[-n_points:]
+                    time = list(self.device.time_buffer)[-n_points:]
+
+                    # 转换时间到相对0
+                    if len(time) > 0:
+                        time = [t - time[0] for t in time]
+                        self.line1.set_data(time, data)
+                        self.ax1.relim()
+                        self.ax1.autoscale_view()
+
+                # 更新频带能量 (如果有新的大包)
+                if len(self.device.bands_buffer) > 0:
+                    latest = self.device.bands_buffer[-1]
+                    band_values = [
+                        latest.get('delta', 0),
+                        latest.get('theta', 0),
+                        latest.get('low_alpha', 0),
+                        latest.get('high_alpha', 0),
+                        latest.get('low_beta', 0),
+                        latest.get('high_beta', 0),
+                        latest.get('low_gamma', 0),
+                        latest.get('middle_gamma', 0)
+                    ]
+
+                    # 更新柱状图
+                    for bar, val in zip(self.bars, band_values):
+                        bar.set_height(val)
+
+                    # 自动调整y轴
+                    self.ax2.relim()
+                    self.ax2.autoscale_view()
+
+                # 更新专注度/放松度 (显示最近30秒)
+                if len(self.device.attention_buffer) > 0 and len(self.device.meditation_buffer) > 0:
+                    # 创建x轴数据 (假设每秒一次)
+                    x = list(range(len(self.device.attention_buffer)))
+                    self.line_att.set_data(x, self.device.attention_buffer)
+                    self.line_med.set_data(x, self.device.meditation_buffer)
+                    self.ax3.relim()
+                    self.ax3.autoscale_view()
+
+                return self.line1, *self.bars, self.line_att, self.line_med
+
+            def start(self):
+                """开始实时显示"""
+                ani = animation.FuncAnimation(
+                    self.fig, self.update, interval=100, blit=False
+                )
+                plt.show()
+
+                # ========== 第5部分：眨眼检测 ==========
+
+                class BlinkDetector:
+                    """
+                    简单的眨眼检测
+                    """
+
+                    def __init__(self, threshold=300):
+                        self.threshold = threshold
+                        self.blink_count = 0
+                        self.in_blink = False
+
+                    def detect(self, rawdata):
+                        """
+                        检测眨眼：原始值突然变大然后变小
+                        """
+                        # 这里用简单阈值
+                        if rawdata > self.threshold:
+                            if not self.in_blink:
+                                self.in_blink = True
+                                self.blink_count += 1
+                                return True
+                        else:
+                            self.in_blink = False
+
+                        return False
+
+                    # ========== 第5部分：眨眼检测 ==========
+
+                    class BlinkDetector:
+                        """
+                        简单的眨眼检测
+                        """
+
+                        def __init__(self, threshold=300):
+                            self.threshold = threshold
+                            self.blink_count = 0
+                            self.in_blink = False
+
+                        def detect(self, rawdata):
+                            """
+                            检测眨眼：原始值突然变大然后变小
+                            """
+                            # 这里用简单阈值
+                            if rawdata > self.threshold:
+                                if not self.in_blink:
+                                    self.in_blink = True
+                                    self.blink_count += 1
+                                    return True
+                            else:
+                                self.in_blink = False
+
+                            return False
