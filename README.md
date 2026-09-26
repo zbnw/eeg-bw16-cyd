@@ -4,11 +4,19 @@
 
 eeg到bw16的接线在wiki中已说明，或使用开源的底板 [点此跳转立创开源平台中的项目页面](https://oshwhub.com/zbnzqzs/project_xehxtkvt?jspm=hub.zy.zp.gc1&jlc_vid=EQVbXldRQFJZVgJRQVYMVwFWT1FeUgZfRARWUAcARFgxVlNfR1JXUVNVT1lbVDtWKA4dDxMOAgNABAsL)
 
+# 有任何问题请发邮件到 zbnzqzs@outlook.com
+# 完整文档也已整理在[项目 Wiki](https://github.com/zbnw/eeg-bw16-cyd/wiki)
+当前同步发布了几个blog：
+[CSDN](https://blog.csdn.net/ZbnT666666/article/details/166689488)
+[简书](https://www.jianshu.com/p/ff7836bd1274)
+[知乎](https://zhuanlan.zhihu.com/p/2087173760008839721)
+[宁静致远blog](https://zbncc.wordpress.com/2026/09/26/eeg/)
+
+
 项目适合学习嵌入式数据链路、验证模块接线与 BLE 传输、观察原始波形及调试丢包和断流。它**不是医疗器械**，不提供诊断、治疗建议或经校准的脑电测量。网页的演示曲线是合成数据，不能当作真实 EEG。人体接触测试必须先阅读[原型安全边界](hardware/SAFETY.md)。
 
 当前源码版本为 **0.2.0（2026-09-26）**。项目设备曾上传该版本固件，但其他硬件需要自行构建、烧录和验证；源码构建通过不等于每块板上的运行结果均已确认。完整升级与验收步骤见[0.2.0 升级、回退与验收](docs/09_v0.2升级与验收.md)。
 
-**完整中文说明也已整理在[项目 Wiki](https://github.com/zbnw/eeg-bw16-cyd/wiki)，可以从首页按“入门、数据与排障、协议与开发、硬件与维护”逐步阅读。**
 
 ## 它是如何工作的
 
